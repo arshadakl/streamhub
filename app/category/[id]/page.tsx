@@ -1,0 +1,151 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import { notFound, useParams } from "next/navigation"
+import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
+import { ChannelCard } from "@/components/channel-card"
+import { useIPTV } from "@/lib/iptv-context"
+import Link from "next/link"
+import type { Channel, Category } from "@/lib/types"
+
+export default function CategoryPage() {
+  const params = useParams()
+  const id = decodeURIComponent(params.id as string).toLowerCase()
+  const { channels, countries, languages, categories, isLoading } = useIPTV()
+  const [category, setCategory] = useState<Category | null>(null)
+  const [categoryChannels, setCategoryChannels] = useState<Channel[]>([])
+  const [searchComplete, setSearchComplete] = useState(false)
+
+  useEffect(() => {
+    if (!isLoading && categories.length > 0) {
+      const found = categories.find((c) => c.id.toLowerCase() === id)
+      setCategory(found || null)
+
+      if (found) {
+        const chans = channels.filter((ch) => ch.categories.some((cat) => cat.toLowerCase() === found.id.toLowerCase()))
+        setCategoryChannels(chans)
+      }
+      setSearchComplete(true)
+    }
+  }, [id, categories, channels, isLoading])
+
+  if (isLoading || !searchComplete) {
+    return (
+      <div className="min-h-screen">
+        <section className="relative py-16 lg:py-24 px-6 lg:px-12 bg-gradient-to-b from-secondary/50 to-background">
+          <div className="flex items-center gap-4 mb-4">
+            <Skeleton className="w-20 h-20 rounded-2xl" />
+            <div>
+              <Skeleton className="h-12 w-48" />
+              <Skeleton className="h-6 w-32 mt-2" />
+            </div>
+          </div>
+        </section>
+        <section className="px-6 lg:px-12 py-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            {Array.from({ length: 10 }).map((_, i) => (
+              <Skeleton key={i} className="h-[150px] rounded-xl" />
+            ))}
+          </div>
+        </section>
+      </div>
+    )
+  }
+
+  if (!category) {
+    notFound()
+  }
+
+  // Get unique countries and languages for this category
+  const uniqueCountries = [...new Set(categoryChannels.map((ch) => ch.country))]
+  const uniqueLanguages = [...new Set(categoryChannels.flatMap((ch) => ch.languages))]
+
+  return (
+    <div className="min-h-screen">
+      {/* Hero Header */}
+      <section className="relative py-16 lg:py-24 px-6 lg:px-12 bg-gradient-to-b from-secondary/50 to-background">
+        <div className="max-w-4xl">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="p-4 rounded-2xl bg-accent/20">
+              <span className="text-4xl">{category.icon}</span>
+            </div>
+            <div>
+              <h1 className="text-3xl lg:text-5xl font-bold text-foreground">{category.name}</h1>
+              <p className="text-lg text-muted-foreground mt-2">
+                {categoryChannels.length.toLocaleString()} channels available
+              </p>
+            </div>
+          </div>
+
+          {/* Filters */}
+          <div className="flex flex-wrap gap-4 mt-6">
+            <div>
+              <p className="text-sm text-muted-foreground mb-2">Countries:</p>
+              <div className="flex flex-wrap gap-2">
+                {uniqueCountries.slice(0, 8).map((countryCode) => {
+                  const country = countries.find((c) => c.code.toUpperCase() === countryCode.toUpperCase())
+                  return (
+                    <Link key={countryCode} href={`/country/${encodeURIComponent(countryCode.toLowerCase())}`}>
+                      <Badge
+                        variant="secondary"
+                        className="cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors"
+                      >
+                        {country?.flag} {country?.name || countryCode}
+                      </Badge>
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground mb-2">Languages:</p>
+              <div className="flex flex-wrap gap-2">
+                {uniqueLanguages.slice(0, 6).map((langCode) => {
+                  const lang = languages.find((l) => l.code.toLowerCase() === langCode.toLowerCase())
+                  return (
+                    <Link key={langCode} href={`/language/${encodeURIComponent(langCode.toLowerCase())}`}>
+                      <Badge
+                        variant="outline"
+                        className="cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors"
+                      >
+                        {lang?.name || langCode}
+                      </Badge>
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Channel Grid */}
+      <section className="px-6 lg:px-12 py-8">
+        <h2 className="text-xl font-semibold text-foreground mb-6">All {category.name} Channels</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+          {categoryChannels.slice(0, 100).map((channel) => (
+            <ChannelCard key={channel.id} channel={channel} />
+          ))}
+        </div>
+
+        {categoryChannels.length > 100 && (
+          <div className="mt-8 text-center py-6 bg-card rounded-xl border border-border">
+            <p className="text-muted-foreground">
+              Showing 100 of {categoryChannels.length.toLocaleString()} channels. Use search to find specific channels.
+            </p>
+          </div>
+        )}
+
+        {categoryChannels.length === 0 && (
+          <div className="text-center py-16">
+            <p className="text-muted-foreground text-lg">No channels available in this category yet.</p>
+            <Link href="/explore" className="text-accent hover:underline mt-2 inline-block">
+              Explore all channels
+            </Link>
+          </div>
+        )}
+      </section>
+    </div>
+  )
+}
