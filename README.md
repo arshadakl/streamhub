@@ -139,6 +139,6 @@ StreamHub is fully responsive and works seamlessly on:
 - Tablets
 - Mobile phones
 
-## 🙏 Credits
+##  Credits
 
 Built by [Arshad AKL](https://arshadakl.in)
